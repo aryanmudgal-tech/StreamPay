@@ -6,6 +6,7 @@ dist/
 .env
 .DS_Store
 *-wallets.json
+*-wallet.json
 create_wallets/wallets.json
 .claude/settings.local.json
 *.js.map
