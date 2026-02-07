@@ -14,7 +14,7 @@ router.get('/videos/:id/price', (req: Request, res: Response) => {
   // Auto-upsert the video on price lookup
   const video = upsertVideo(videoId, title, channel, duration);
   const ratio = effectiveAvgRatio(video);
-  const priceCents = computePrice(ratio, video.override_price);
+  const priceCents = computePrice(ratio, video.duration_seconds, video.override_price);
 
   const centsPerSecond = video.duration_seconds > 0
     ? priceCents / video.duration_seconds

@@ -4,9 +4,11 @@ import { Video } from '../types';
 export function upsertVideo(videoId: string, title: string, channel: string, durationSeconds: number): Video {
   const db = getDb();
 
+  // Insert with avg_watch_ratio = 100 (default full engagement for new videos)
+  // On conflict, only update metadata, not the avg_watch_ratio
   db.prepare(`
-    INSERT INTO videos (video_id, title, channel, duration_seconds)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO videos (video_id, title, channel, duration_seconds, avg_watch_ratio)
+    VALUES (?, ?, ?, ?, 100.0)
     ON CONFLICT(video_id) DO UPDATE SET
       title = excluded.title,
       channel = excluded.channel,

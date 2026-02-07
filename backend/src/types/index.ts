@@ -40,11 +40,11 @@ export interface WatchEvent {
 
 // ── Pricing ──
 export interface PricingConfig {
-  basePriceCents: number;     // base price for the full video in cents
+  baseCentsPerSecond: number;  // base price per second in cents
 }
 
 export const DEFAULT_PRICING: PricingConfig = {
-  basePriceCents: 10,
+  baseCentsPerSecond: 0.2,      // 0.2 cents per second
 };
 
 // ── Payment Provider ──

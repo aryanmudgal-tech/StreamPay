@@ -11,15 +11,17 @@ import { PricingConfig, DEFAULT_PRICING } from '../types';
  * - At 0% ratio   → free.
  *
  * If an overridePrice is set, it replaces the base price.
+ * Otherwise, base price = baseCentsPerSecond × durationSeconds
  */
 export function computePrice(
   avgWatchRatioPercent: number,
+  durationSeconds: number,
   overridePrice: number | null,
   config: PricingConfig = DEFAULT_PRICING
 ): number {
   const base = (overridePrice !== null && overridePrice !== undefined)
     ? overridePrice
-    : config.basePriceCents;
+    : config.baseCentsPerSecond * durationSeconds;
 
   return Math.round(base * (avgWatchRatioPercent / 100));
 }
