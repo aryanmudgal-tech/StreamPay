@@ -3,6 +3,7 @@ import cors from 'cors';
 import priceRoutes from './routes/price';
 import sessionRoutes from './routes/sessions';
 import adminRoutes from './routes/admin';
+import xrplRoutes from './routes/xrpl';
 
 export function createApp(): express.Application {
   const app = express();
@@ -27,6 +28,7 @@ export function createApp(): express.Application {
   // Mount routes
   app.use('/api', priceRoutes);
   app.use('/api', sessionRoutes);
+  app.use('/api', xrplRoutes);
   app.use('/', adminRoutes);
 
   return app;

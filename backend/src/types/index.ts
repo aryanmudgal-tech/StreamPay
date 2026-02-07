@@ -5,6 +5,7 @@ export interface Video {
   channel: string;
   duration_seconds: number;
   avg_watch_ratio: number;
+  manual_avg_watch_ratio: number | null;
   override_price: number | null;
   created_at: string;
   updated_at: string;
@@ -39,17 +40,11 @@ export interface WatchEvent {
 
 // ── Pricing ──
 export interface PricingConfig {
-  basePriceCents: number;
-  maxShiftPct: number;        // max ±% shift from base (0.25 = 25%)
-  demandWeight: number;       // k — scales how fast price reacts
-  targetRatio: number;        // Rt — watch ratio threshold (0.5 = 50%)
+  basePriceCents: number;     // base price for the full video in cents
 }
 
 export const DEFAULT_PRICING: PricingConfig = {
   basePriceCents: 10,
-  maxShiftPct: 0.25,
-  demandWeight: 0.5,
-  targetRatio: 0.5,
 };
 
 // ── Payment Provider ──

@@ -1,16 +1,19 @@
 import { PricingConfig, DEFAULT_PRICING } from '../types';
 
 /**
- * Dynamic pricing capped at ±25% of the base rate.
+ * 1:1 proportional pricing.
  *
- * If avg watch ratio > target (50%), price goes UP (people like it → costs more).
- * If avg watch ratio < target, price goes DOWN.
- * But never more than ±maxShiftPct from the base.
+ * totalPrice = base × (avgWatchRatioPercent / 100)
  *
- * P = clamp(base * (1 + k * (R - Rt)), base * 0.75, base * 1.25)
+ * - avgWatchRatioPercent is 0–100 (community engagement level).
+ * - At 100% ratio → full base price.
+ * - At 50% ratio  → half the base price.
+ * - At 0% ratio   → free.
+ *
+ * If an overridePrice is set, it replaces the base price.
  */
 export function computePrice(
-  avgWatchRatio: number,
+  avgWatchRatioPercent: number,
   overridePrice: number | null,
   config: PricingConfig = DEFAULT_PRICING
 ): number {
@@ -18,10 +21,5 @@ export function computePrice(
     ? overridePrice
     : config.basePriceCents;
 
-  const { maxShiftPct, demandWeight, targetRatio } = config;
-  const minPrice = base * (1 - maxShiftPct);
-  const maxPrice = base * (1 + maxShiftPct);
-
-  const raw = base * (1 + demandWeight * (avgWatchRatio - targetRatio));
-  return Math.round(Math.max(minPrice, Math.min(maxPrice, raw)));
+  return Math.round(base * (avgWatchRatioPercent / 100));
 }

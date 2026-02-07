@@ -40,6 +40,7 @@ export interface PriceResponse {
   priceCents: number;
   centsPerSecond: number;
   avgWatchRatio: number;
+  manualAvgWatchRatio: number | null;
   overridePrice: number | null;
   durationSeconds: number;
 }
