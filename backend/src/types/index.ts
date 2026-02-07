@@ -22,8 +22,22 @@ export interface WatchSession {
   price_quoted: number;
   price_final: number | null;
   seconds_watched: number;
+  amount_streamed: number;
   started_at: string;
   ended_at: string | null;
+}
+
+// ── Payment Ledger ──
+export type PaymentTxType = 'stream' | 'final' | 'refund';
+
+export interface PaymentLedgerEntry {
+  id: number;
+  session_id: string;
+  amount_cents: number;
+  rlusd_amount: string;
+  tx_hash: string;
+  tx_type: PaymentTxType;
+  created_at: string;
 }
 
 // ── Watch Event ──

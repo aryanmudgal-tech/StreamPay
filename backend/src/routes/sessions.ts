@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { extractInstallId } from '../middleware/install-id';
 import { getVideo } from '../models/video';
-import { createSession, getSession, updateSessionTime, endSession, declineSession } from '../models/session';
+import {
+  createSession, getSession, updateSessionTime, updateAmountStreamed,
+  endSession, declineSession, recordPayment, getSessionPayments,
+} from '../models/session';
 import { insertEvent } from '../models/event';
-import { computePrice } from '../services/pricing';
 import { paymentProvider } from '../services/payment-provider';
 import { EventType } from '../types';
 
@@ -34,8 +36,8 @@ router.post('/sessions/decline', extractInstallId, (req: Request, res: Response)
   res.status(201).json(session);
 });
 
-// POST /api/sessions/:id/events — log a watch event
-router.post('/sessions/:id/events', (req: Request, res: Response) => {
+// POST /api/sessions/:id/events — log a watch event + stream micro-payment on heartbeat
+router.post('/sessions/:id/events', async (req: Request, res: Response) => {
   const sessionId = req.params.id as string;
   const { eventType, timestampSeconds, metadata } = req.body;
 
@@ -53,14 +55,23 @@ router.post('/sessions/:id/events', (req: Request, res: Response) => {
 
   // Update seconds watched on heartbeats
   if (eventType === 'heartbeat' && typeof timestampSeconds === 'number') {
-    updateSessionTime(sessionId, Math.floor(timestampSeconds));
+    const secs = Math.floor(timestampSeconds);
+    updateSessionTime(sessionId, secs);
+    session.seconds_watched = secs;  // keep in-memory object in sync
   }
 
   const event = insertEvent(sessionId, eventType, timestampSeconds || 0, metadata);
-  res.status(201).json(event);
+
+  // On heartbeat: calculate and send micro-payment for the increment
+  let payment = null;
+  if (eventType === 'heartbeat' && session.status === 'active') {
+    payment = await processStreamPayment(session);
+  }
+
+  res.status(201).json({ event, payment });
 });
 
-// POST /api/sessions/:id/end — finalize a session
+// POST /api/sessions/:id/end — finalize a session + send remaining RLUSD
 router.post('/sessions/:id/end', async (req: Request, res: Response) => {
   const sessionId = req.params.id as string;
   const { secondsWatched } = req.body;
@@ -75,21 +86,76 @@ router.post('/sessions/:id/end', async (req: Request, res: Response) => {
     return;
   }
 
+  const finalSeconds = secondsWatched || session.seconds_watched;
+  updateSessionTime(sessionId, finalSeconds);
+
+  // Calculate total owed
   const video = getVideo(session.video_id);
   const watchRatio = video && video.duration_seconds > 0
-    ? (secondsWatched || session.seconds_watched) / video.duration_seconds
+    ? Math.min(finalSeconds / video.duration_seconds, 1)
     : 1;
+  const priceFinal = Math.round(session.price_quoted * watchRatio);
 
-  // Prorate price based on watch ratio
-  const priceFinal = Math.round(session.price_quoted * Math.min(watchRatio, 1));
+  // Send any remaining unpaid delta
+  const alreadyPaid = session.amount_streamed;
+  const delta = Math.max(0, priceFinal - alreadyPaid);
 
-  // Stub charge
-  await paymentProvider.charge(session.install_id, priceFinal, `session:${sessionId}`);
+  let payment = null;
+  if (delta > 0) {
+    const result = await paymentProvider.charge(
+      session.install_id, delta, `final:${sessionId}`
+    );
+    if (result.success) {
+      updateAmountStreamed(sessionId, alreadyPaid + delta);
+      recordPayment(sessionId, delta, (delta / 100).toFixed(6), result.transactionId, 'final');
+      payment = result;
+    }
+  }
 
-  insertEvent(sessionId, 'end', secondsWatched || session.seconds_watched);
-  const ended = endSession(sessionId, secondsWatched || session.seconds_watched, priceFinal);
+  insertEvent(sessionId, 'end', finalSeconds);
+  const ended = endSession(sessionId, finalSeconds, priceFinal);
 
-  res.json(ended);
+  // Include payment history
+  const payments = getSessionPayments(sessionId);
+
+  res.json({ session: ended, payments, finalPayment: payment });
 });
+
+/**
+ * Process a streaming micro-payment based on the seconds watched so far.
+ * Calculates the total owed at this point, subtracts what's already been streamed,
+ * and sends only the delta.
+ */
+async function processStreamPayment(session: {
+  session_id: string;
+  install_id: string;
+  video_id: string;
+  price_quoted: number;
+  seconds_watched: number;
+  amount_streamed: number;
+}) {
+  const video = getVideo(session.video_id);
+  if (!video || video.duration_seconds <= 0) return null;
+
+  // How much should have been paid by now (prorated)
+  const watchRatio = Math.min(session.seconds_watched / video.duration_seconds, 1);
+  const owedSoFar = Math.round(session.price_quoted * watchRatio);
+
+  // How much is the increment
+  const delta = Math.max(0, owedSoFar - session.amount_streamed);
+  if (delta <= 0) return null;
+
+  const result = await paymentProvider.charge(
+    session.install_id, delta, `stream:${session.session_id}:${session.seconds_watched}s`
+  );
+
+  if (result.success) {
+    const newTotal = session.amount_streamed + delta;
+    updateAmountStreamed(session.session_id, newTotal);
+    recordPayment(session.session_id, delta, (delta / 100).toFixed(6), result.transactionId, 'stream');
+  }
+
+  return result;
+}
 
 export default router;
