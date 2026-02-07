@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:xrpl.org)",
+      "WebSearch",
+      "Bash(node:*)",
+      "Bash(npm --version:*)",
+      "Bash(file:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(kill:*)",
+      "Bash(lsof:*)",
+      "Bash(git init:*)",
+      "Bash(npm run build:extension:*)",
+      "Bash(sqlite3:*)",
+      "Bash(xargs kill:*)"
+    ]
+  }
+}
