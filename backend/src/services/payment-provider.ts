@@ -54,6 +54,16 @@ export class XrplPaymentProvider implements PaymentProvider {
     }
   }
 
+  /** Expose the connected XRPL client for reuse (e.g. onboarding route). */
+  getClient(): xrpl.Client | null {
+    return this.connected ? this.client : null;
+  }
+
+  /** Expose the faucet/server wallet for seeding new user wallets. */
+  getFaucetWallet(): xrpl.Wallet | null {
+    return this.senderWallet;
+  }
+
   async getStatus(): Promise<{
     connected: boolean;
     senderAddress: string | null;
@@ -83,13 +93,27 @@ export class XrplPaymentProvider implements PaymentProvider {
     };
   }
 
-  async charge(installId: string, amountCents: number, memo: string): Promise<PaymentResult> {
-    if (!this.connected || !this.senderWallet) {
+  async charge(installId: string, amountCents: number, memo: string, senderSeed?: string): Promise<PaymentResult> {
+    if (!this.connected) {
       return {
         success: false,
         transactionId: '',
         amountCents,
         error: 'XRPL not connected',
+      };
+    }
+
+    // Use per-user wallet if seed provided, otherwise fall back to faucet wallet
+    const wallet = senderSeed
+      ? xrpl.Wallet.fromSeed(senderSeed)
+      : this.senderWallet;
+
+    if (!wallet) {
+      return {
+        success: false,
+        transactionId: '',
+        amountCents,
+        error: 'No wallet available',
       };
     }
 
@@ -104,12 +128,12 @@ export class XrplPaymentProvider implements PaymentProvider {
     // Convert cents to RLUSD (1 cent = 0.01 RLUSD)
     const rlusdAmount = (amountCents / 100).toFixed(6);
 
-    console.log(`[xrpl] Charging ${amountCents}¢ (${rlusdAmount} RLUSD) for ${memo}`);
+    console.log(`[xrpl] Charging ${amountCents}¢ (${rlusdAmount} RLUSD) from ${wallet.classicAddress} for ${memo}`);
 
     try {
       const paymentTx: xrpl.Payment = {
         TransactionType: 'Payment',
-        Account: this.senderWallet.classicAddress,
+        Account: wallet.classicAddress,
         Destination: RECEIVER_ADDRESS,
         Amount: {
           currency: RLUSD_CURRENCY,
@@ -127,7 +151,7 @@ export class XrplPaymentProvider implements PaymentProvider {
       };
 
       const prepared = await this.client.autofill(paymentTx);
-      const signed = this.senderWallet.sign(prepared);
+      const signed = wallet.sign(prepared);
       const result = await this.client.submitAndWait(signed.tx_blob);
 
       const meta = result.result.meta;

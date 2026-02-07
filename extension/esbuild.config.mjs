@@ -8,6 +8,7 @@ const buildOptions = {
   entryPoints: [
     'src/background/service-worker.ts',
     'src/content/main.ts',
+    'src/onboarding/onboarding.ts',
   ],
   bundle: true,
   outdir: 'dist',
@@ -27,6 +28,11 @@ function copyStatic() {
   // Copy manifest.json
   if (fs.existsSync(path.join(staticDir, 'manifest.json'))) {
     fs.copyFileSync(path.join(staticDir, 'manifest.json'), path.join(distDir, 'manifest.json'));
+  }
+
+  // Copy onboarding.html
+  if (fs.existsSync(path.join(staticDir, 'onboarding.html'))) {
+    fs.copyFileSync(path.join(staticDir, 'onboarding.html'), path.join(distDir, 'onboarding.html'));
   }
 
   // Copy icons directory

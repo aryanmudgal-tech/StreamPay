@@ -1,4 +1,4 @@
-import { FetchProxyMessage, FetchProxyResponse, ExtensionMessage } from './types';
+import { FetchProxyMessage, FetchProxyResponse, ExtensionMessage, WalletInfo } from './types';
 
 /**
  * Send a message to the background service worker and wait for response.
@@ -28,6 +28,19 @@ export async function getInstallId(): Promise<string> {
 }
 
 /**
+ * Get the stored wallet info (address + seed) from the service worker.
+ * Returns null if the user hasn't completed onboarding.
+ */
+export async function getWalletSeed(): Promise<string | null> {
+  try {
+    const result = await sendMessage<WalletInfo | null>({ type: 'GET_WALLET' });
+    return result?.seed ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Proxy a fetch request through the background service worker (avoids CORS).
  */
 export async function apiFetch(
@@ -37,11 +50,15 @@ export async function apiFetch(
   extraHeaders?: Record<string, string>
 ): Promise<FetchProxyResponse> {
   const installId = await getInstallId();
+  const walletSeed = await getWalletSeed();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Install-Id': installId,
     ...extraHeaders,
   };
+  if (walletSeed) {
+    headers['X-Wallet-Seed'] = walletSeed;
+  }
 
   const message: FetchProxyMessage = {
     type: 'FETCH_PROXY',

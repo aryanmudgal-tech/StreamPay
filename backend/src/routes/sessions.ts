@@ -65,7 +65,8 @@ router.post('/sessions/:id/events', async (req: Request, res: Response) => {
   // On heartbeat: calculate and send micro-payment for the increment
   let payment = null;
   if (eventType === 'heartbeat' && session.status === 'active') {
-    payment = await processStreamPayment(session);
+    const walletSeed = req.headers['x-wallet-seed'] as string | undefined;
+    payment = await processStreamPayment(session, walletSeed);
   }
 
   res.status(201).json({ event, payment });
@@ -102,8 +103,9 @@ router.post('/sessions/:id/end', async (req: Request, res: Response) => {
 
   let payment = null;
   if (delta > 0) {
+    const walletSeed = req.headers['x-wallet-seed'] as string | undefined;
     const result = await paymentProvider.charge(
-      session.install_id, delta, `final:${sessionId}`
+      session.install_id, delta, `final:${sessionId}`, walletSeed
     );
     if (result.success) {
       updateAmountStreamed(sessionId, alreadyPaid + delta);
@@ -133,7 +135,7 @@ async function processStreamPayment(session: {
   price_quoted: number;
   seconds_watched: number;
   amount_streamed: number;
-}) {
+}, walletSeed?: string) {
   const video = getVideo(session.video_id);
   if (!video || video.duration_seconds <= 0) return null;
 
@@ -146,7 +148,7 @@ async function processStreamPayment(session: {
   if (delta <= 0) return null;
 
   const result = await paymentProvider.charge(
-    session.install_id, delta, `stream:${session.session_id}:${session.seconds_watched}s`
+    session.install_id, delta, `stream:${session.session_id}:${session.seconds_watched}s`, walletSeed
   );
 
   if (result.success) {

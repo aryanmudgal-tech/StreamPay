@@ -15,11 +15,14 @@ export function createGateOverlay(
   centsPerSecond: number,
   durationSeconds: number,
   videoTitle: string,
-  callbacks: GateCallbacks
+  callbacks: GateCallbacks,
+  useFixed = false
 ): { remove: () => void } {
   const host = document.createElement('div');
   host.id = 'streampay-gate-host';
-  host.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:9999;pointer-events:auto;';
+  host.style.cssText = useFixed
+    ? 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:2147483647;pointer-events:auto;'
+    : 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:9999;pointer-events:auto;';
 
   const shadow = host.attachShadow({ mode: 'closed' });
 
@@ -41,7 +44,7 @@ export function createGateOverlay(
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       .gate {
-        position: absolute;
+        position: ${useFixed ? 'fixed' : 'absolute'};
         top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(10, 10, 26, 0.95);
         display: flex;
@@ -164,8 +167,12 @@ export function createGateOverlay(
   shadow.querySelector('.btn-start')!.addEventListener('click', callbacks.onStart);
   shadow.querySelector('.btn-decline')!.addEventListener('click', callbacks.onDecline);
 
-  container.style.position = 'relative';
-  container.appendChild(host);
+  if (useFixed) {
+    document.body.appendChild(host);
+  } else {
+    container.style.position = 'relative';
+    container.appendChild(host);
+  }
 
   return {
     remove: () => {

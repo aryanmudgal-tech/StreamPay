@@ -71,6 +71,6 @@ export interface PaymentResult {
 
 export interface PaymentProvider {
   name: string;
-  charge(installId: string, amountCents: number, memo: string): Promise<PaymentResult>;
+  charge(installId: string, amountCents: number, memo: string, senderSeed?: string): Promise<PaymentResult>;
   refund(transactionId: string): Promise<PaymentResult>;
 }

@@ -11,14 +11,17 @@ export interface BadgeCallbacks {
  */
 export function createChargingBadge(
   container: HTMLElement,
-  callbacks: BadgeCallbacks
+  callbacks: BadgeCallbacks,
+  useFixed = false
 ): {
   update: (secondsWatched: number, priceCents: number, durationSeconds: number) => void;
   remove: () => void;
 } {
   const host = document.createElement('div');
   host.id = 'streampay-badge-host';
-  host.style.cssText = 'position:absolute;top:12px;right:12px;z-index:9998;';
+  host.style.cssText = useFixed
+    ? 'position:fixed;top:12px;right:12px;z-index:2147483647;'
+    : 'position:absolute;top:12px;right:12px;z-index:9998;';
 
   const shadow = host.attachShadow({ mode: 'closed' });
   shadow.innerHTML = `
@@ -134,8 +137,12 @@ export function createChargingBadge(
     </div>
   `;
 
-  container.style.position = 'relative';
-  container.appendChild(host);
+  if (useFixed) {
+    document.body.appendChild(host);
+  } else {
+    container.style.position = 'relative';
+    container.appendChild(host);
+  }
 
   const costEl = shadow.getElementById('cost')!;
   const timeEl = shadow.getElementById('time')!;

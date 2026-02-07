@@ -2,7 +2,8 @@
 export type MessageType =
   | 'GET_INSTALL_ID'
   | 'FETCH_PROXY'
-  | 'SET_BADGE';
+  | 'SET_BADGE'
+  | 'GET_WALLET';
 
 export interface BaseMessage {
   type: MessageType;
@@ -26,7 +27,16 @@ export interface SetBadgeMessage extends BaseMessage {
   color?: string;
 }
 
-export type ExtensionMessage = GetInstallIdMessage | FetchProxyMessage | SetBadgeMessage;
+export interface GetWalletMessage extends BaseMessage {
+  type: 'GET_WALLET';
+}
+
+export type ExtensionMessage = GetInstallIdMessage | FetchProxyMessage | SetBadgeMessage | GetWalletMessage;
+
+export interface WalletInfo {
+  address: string;
+  seed: string;
+}
 
 export interface FetchProxyResponse {
   ok: boolean;

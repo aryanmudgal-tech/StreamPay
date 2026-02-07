@@ -50,11 +50,28 @@ async function handleMessage(message: ExtensionMessage): Promise<any> {
       }
       return { ok: true };
     }
+
+    case 'GET_WALLET': {
+      const stored = await chrome.storage.local.get(['wallet_address', 'wallet_seed']);
+      if (stored.wallet_address && stored.wallet_seed) {
+        return { address: stored.wallet_address, seed: stored.wallet_seed };
+      }
+      return null;
+    }
   }
 }
 
-// Initialize install_id on extension install
-chrome.runtime.onInstalled.addListener(async () => {
+// Initialize install_id on extension install; open onboarding for new installs
+chrome.runtime.onInstalled.addListener(async (details) => {
   const id = await getOrCreateInstallId();
   console.log('[sw] StreamPay installed, id:', id);
+
+  if (details.reason === 'install') {
+    // Check if wallet already exists (shouldn't on fresh install)
+    const stored = await chrome.storage.local.get('wallet_seed');
+    if (!stored.wallet_seed) {
+      const onboardingUrl = chrome.runtime.getURL('onboarding.html');
+      chrome.tabs.create({ url: onboardingUrl });
+    }
+  }
 });
